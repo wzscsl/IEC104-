@@ -1,0 +1,39 @@
+# Maven 构建输出
+target/
+build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Trae IDE
+.trae/
+
+# Maven shade 插件生成的文件
+dependency-reduced-pom.xml
+
+# 编译输出
+*.class
+
+# 日志文件
+*.log
+logs/
+
+# 打包文件
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# 系统文件
+.DS_Store
+Thumbs.db
