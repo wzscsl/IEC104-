@@ -261,13 +261,17 @@ public class ServerManager {
         // Send activation confirmation
         connection.sendConfirmation(request, stationAddress);
 
-        // Send data for each type
+        // Send data for each type (batch multiple objects per ASDU)
         if (dataModel != null) {
             for (ASduType type : dataModel.getUsedTypes()) {
                 List<InformationObject> objects = dataModel.buildInterrogationObjects(type);
-                for (InformationObject obj : objects) {
+                // 按 APDU 最大长度 253 字节分批发送
+                int batchSize = 20; // 安全批大小，适配最大对象类型
+                for (int start = 0; start < objects.size(); start += batchSize) {
+                    int end = Math.min(start + batchSize, objects.size());
+                    InformationObject[] batch = objects.subList(start, end).toArray(new InformationObject[0]);
                     ASdu dataAsdu = new ASdu(type, false, CauseOfTransmission.INTERROGATED_BY_STATION,
-                            false, false, request.getOriginatorAddress(), stationAddress, obj);
+                            false, false, request.getOriginatorAddress(), stationAddress, batch);
                     connection.send(dataAsdu);
                 }
             }

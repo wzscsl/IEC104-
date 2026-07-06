@@ -3,7 +3,6 @@ package com.iec104tester.ui;
 import com.iec104tester.capture.CaptureManager;
 import com.iec104tester.capture.PacketRecord;
 import com.iec104tester.capture.PacketStorage;
-import com.iec104tester.core.ClientManager;
 import com.iec104tester.core.ServerManager;
 import com.iec104tester.core.ServerDataModel;
 
@@ -21,64 +20,64 @@ public class MainFrame extends JFrame {
     private static final String MODE_CLIENT = "客户端模式";
     private static final String MODE_SERVER = "服务端模式";
 
-    private final CaptureManager captureManager;
-    private final ClientManager clientManager;
     private final ServerManager serverManager;
+    private final CaptureManager serverCaptureManager;
 
+    private ClientPanel clientPanel;
     private JLabel statusLabel;
     private JLabel packetCountLabel;
     private JLabel modeLabel;
     private JTabbedPane tabbedPane;
 
     public MainFrame() {
-        // 1. 窗口基本设置
         setTitle("IEC104 协议测试工具");
-        setSize(1200, 800);
+        setSize(1280, 820);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // 5. 创建共享实例
-        captureManager = new CaptureManager();
-        clientManager = new ClientManager();
+        // 服务端共享实例
+        serverCaptureManager = new CaptureManager();
         serverManager = new ServerManager();
         ServerDataModel serverDataModel = new ServerDataModel();
-        clientManager.setCaptureManager(captureManager);
-        serverManager.setCaptureManager(captureManager);
+        serverManager.setCaptureManager(serverCaptureManager);
         serverManager.setDataModel(serverDataModel);
 
-        // 6. 菜单栏
+        // 菜单栏
         setJMenuBar(createMenuBar());
 
-        // 7. 选项卡面板
+        // 选项卡面板
         tabbedPane = new JTabbedPane();
-        tabbedPane.addTab(MODE_CLIENT, new ClientPanel(clientManager, captureManager));
-        tabbedPane.addTab(MODE_SERVER, new ServerPanel(serverManager, serverDataModel, captureManager));
+        clientPanel = new ClientPanel();
+        tabbedPane.addTab(MODE_CLIENT, clientPanel);
+        tabbedPane.addTab(MODE_SERVER, new ServerPanel(serverManager, serverDataModel, serverCaptureManager));
         add(tabbedPane, BorderLayout.CENTER);
 
-        // 8. 状态栏
+        // 状态栏
         add(createStatusBar(), BorderLayout.SOUTH);
 
         // 初始化状态栏显示
         updateModeAndStatus();
 
-        // 选项卡切换监听：更新当前模式和连接状态
+        // 选项卡切换监听
         tabbedPane.addChangeListener(e -> updateModeAndStatus());
 
-        // 9. 错误回调
-        clientManager.setErrorCallback(msg -> SwingUtilities.invokeLater(() -> {
-            updateConnectionStatus();
-            JOptionPane.showMessageDialog(this, msg, "客户端错误", JOptionPane.ERROR_MESSAGE);
-        }));
+        // 客户端状态变化回调
+        clientPanel.setStateChangedCallback(() -> updateConnectionStatus());
+
+        // 服务端错误回调
         serverManager.setErrorCallback(msg -> SwingUtilities.invokeLater(() -> {
             updateConnectionStatus();
             JOptionPane.showMessageDialog(this, msg, "服务端错误", JOptionPane.ERROR_MESSAGE);
         }));
 
-        // 报文计数回调
-        captureManager.addCountCallback(count -> SwingUtilities.invokeLater(() ->
-                packetCountLabel.setText("报文数: " + count)));
+        // 服务端报文计数回调
+        serverCaptureManager.addCountCallback(count -> SwingUtilities.invokeLater(() -> {
+            if (tabbedPane.getSelectedIndex() == 1) {
+                packetCountLabel.setText("报文数: " + count);
+            }
+        }));
 
-        // 定时刷新连接状态（避免与子面板的状态回调冲突）
+        // 定时刷新状态栏
         Timer statusTimer = new Timer(1000, e -> updateConnectionStatus());
         statusTimer.start();
     }
@@ -86,11 +85,10 @@ public class MainFrame extends JFrame {
     private JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
-        // 文件菜单
         JMenu fileMenu = new JMenu("文件");
 
         JMenuItem newItem = new JMenuItem("新建会话");
-        newItem.addActionListener(e -> captureManager.clearPackets());
+        newItem.addActionListener(e -> clearActivePackets());
         fileMenu.add(newItem);
 
         JMenuItem openItem = new JMenuItem("打开报文文件");
@@ -113,11 +111,10 @@ public class MainFrame extends JFrame {
 
         menuBar.add(fileMenu);
 
-        // 帮助菜单
         JMenu helpMenu = new JMenu("帮助");
         JMenuItem aboutItem = new JMenuItem("关于");
         aboutItem.addActionListener(e -> JOptionPane.showMessageDialog(this,
-                "IEC104 协议测试工具 v1.0\n基于 j60870 开源库\n支持 IEC 60870-5-104 协议测试",
+                "IEC104 协议测试工具 v1.0\n基于 j60870 开源库\n支持 IEC 60870-5-104 协议测试\n支持多连接管理",
                 "关于", JOptionPane.INFORMATION_MESSAGE));
         helpMenu.add(aboutItem);
 
@@ -155,22 +152,14 @@ public class MainFrame extends JFrame {
 
     private void updateConnectionStatus() {
         int index = tabbedPane.getSelectedIndex();
-        String status;
         if (index == 0) {
-            status = "状态: " + stateToString(clientManager.getState());
+            // 客户端模式：显示当前选中连接的状态
+            statusLabel.setText("状态: " + clientPanel.getActiveStatusText());
+            packetCountLabel.setText("报文数: " + clientPanel.getActivePacketCount());
         } else {
-            status = "状态: " + stateToString(serverManager.getState());
-        }
-        statusLabel.setText(status);
-    }
-
-    private String stateToString(ClientManager.ConnectionState state) {
-        switch (state) {
-            case DISCONNECTED: return "未连接";
-            case CONNECTING: return "连接中";
-            case CONNECTED: return "已连接";
-            case ERROR: return "错误";
-            default: return state.toString();
+            // 服务端模式
+            statusLabel.setText("状态: " + stateToString(serverManager.getState()));
+            packetCountLabel.setText("报文数: " + serverCaptureManager.getPacketCount());
         }
     }
 
@@ -184,18 +173,32 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private CaptureManager getActiveCaptureManager() {
+        int index = tabbedPane.getSelectedIndex();
+        if (index == 0) {
+            return clientPanel.getActiveCaptureManager();
+        } else {
+            return serverCaptureManager;
+        }
+    }
+
+    private void clearActivePackets() {
+        CaptureManager mgr = getActiveCaptureManager();
+        if (mgr != null) mgr.clearPackets();
+    }
+
     private void openPacketFile() {
+        CaptureManager mgr = getActiveCaptureManager();
+        if (mgr == null) return;
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("打开报文文件");
         chooser.setFileFilter(new FileNameExtensionFilter("JSON Lines 文件 (*.jsonl)", "jsonl"));
         chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
         File file = chooser.getSelectedFile();
         try {
             List<PacketRecord> loaded = PacketStorage.loadFromJsonLines(file);
-            captureManager.loadPackets(loaded);
+            mgr.loadPackets(loaded);
             JOptionPane.showMessageDialog(this, "成功加载 " + loaded.size() + " 条报文",
                     "加载成功", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
@@ -205,20 +208,20 @@ public class MainFrame extends JFrame {
     }
 
     private void savePackets() {
+        CaptureManager mgr = getActiveCaptureManager();
+        if (mgr == null) return;
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("保存报文");
         chooser.setFileFilter(new FileNameExtensionFilter("JSON Lines 文件 (*.jsonl)", "jsonl"));
         chooser.setSelectedFile(new File(PacketStorage.generateFileName()));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
         File file = chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".jsonl")) {
             file = new File(file.getParentFile(), file.getName() + ".jsonl");
         }
         try {
-            PacketStorage.saveToJsonLines(captureManager.getPackets(), file);
-            JOptionPane.showMessageDialog(this, "成功保存 " + captureManager.getPacketCount() + " 条报文",
+            PacketStorage.saveToJsonLines(mgr.getPackets(), file);
+            JOptionPane.showMessageDialog(this, "成功保存 " + mgr.getPacketCount() + " 条报文",
                     "保存成功", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "保存失败: " + ex.getMessage(),
@@ -227,21 +230,21 @@ public class MainFrame extends JFrame {
     }
 
     private void exportCsv() {
+        CaptureManager mgr = getActiveCaptureManager();
+        if (mgr == null) return;
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("导出CSV");
         chooser.setFileFilter(new FileNameExtensionFilter("CSV 文件 (*.csv)", "csv"));
         String csvName = PacketStorage.generateFileName().replace(".jsonl", ".csv");
         chooser.setSelectedFile(new File(csvName));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
         File file = chooser.getSelectedFile();
         if (!file.getName().toLowerCase().endsWith(".csv")) {
             file = new File(file.getParentFile(), file.getName() + ".csv");
         }
         try {
-            PacketStorage.exportToCsv(captureManager.getPackets(), file);
-            JOptionPane.showMessageDialog(this, "成功导出 " + captureManager.getPacketCount() + " 条报文",
+            PacketStorage.exportToCsv(mgr.getPackets(), file);
+            JOptionPane.showMessageDialog(this, "成功导出 " + mgr.getPacketCount() + " 条报文",
                     "导出成功", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "导出失败: " + ex.getMessage(),

@@ -310,9 +310,9 @@ public class ServerConfigDialog extends JDialog {
                     {0x2001, 10},   // M_DP_NA_1 双点遥信
                     {0x3001, 0},    // M_SP_TB_1 带时标单点
                     {0x4001, 0},    // M_ME_NA_1 归一化遥测
-                    {0x4801, 0},    // M_ME_NB_1 标度化遥测
-                    {0x5001, 50},   // M_ME_NC_1 短浮点遥测
-                    {0x5801, 10},   // M_IT_NA_1 电度
+                    {0x4001, 0},    // M_ME_NB_1 标度化遥测
+                    {0x4001, 50},   // M_ME_NC_1 短浮点遥测
+                    {0x4033, 10},   // M_IT_NA_1 电度
             };
             for (int i = 0; i < rows.size() && i < defaults.length; i++) {
                 rows.get(i).startAddress = defaults[i][0];

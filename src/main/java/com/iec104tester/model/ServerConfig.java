@@ -35,9 +35,9 @@ public class ServerConfig {
         dataTypeConfig.put(ASduType.M_DP_NA_1, new int[]{0x2001, 10});       // 双点遥信: 8193 起
         dataTypeConfig.put(ASduType.M_SP_TB_1, new int[]{0x3001, 0});        // 带时标单点: 12289 起
         dataTypeConfig.put(ASduType.M_ME_NA_1, new int[]{0x4001, 0});        // 归一化遥测: 16385 起
-        dataTypeConfig.put(ASduType.M_ME_NB_1, new int[]{0x4801, 0});        // 标度化遥测: 18433 起
-        dataTypeConfig.put(ASduType.M_ME_NC_1, new int[]{0x5001, 50});       // 短浮点遥测: 20481 起
-        dataTypeConfig.put(ASduType.M_IT_NA_1, new int[]{0x5801, 10});       // 电度: 22529 起
+        dataTypeConfig.put(ASduType.M_ME_NB_1, new int[]{0x4001, 0});        // 标度化遥测: 16385 起（count=0 不生成）
+        dataTypeConfig.put(ASduType.M_ME_NC_1, new int[]{0x4001, 50});       // 短浮点遥测: 16385 起
+        dataTypeConfig.put(ASduType.M_IT_NA_1, new int[]{0x4033, 10});       // 电度: 16385+50=16435 起
     }
 
     public String getBindAddress() { return bindAddress; }
