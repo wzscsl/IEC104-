@@ -250,13 +250,20 @@ public class SessionPanel extends JPanel {
         String time = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date());
 
         for (InformationObject obj : asdu.getInformationObjects()) {
-            int ioa = obj.getInformationObjectAddress();
-            if (!session.getConfig().isIoaInRange(ioa, category)) continue;
+            InformationElement[][] elementSets = obj.getInformationElements();
+            if (elementSets == null || elementSets.length == 0) continue;
 
-            String typeName = com.iec104tester.core.AsduDecoder.getTypeNameCn(type);
-            String value = extractValue(type, obj);
-            String quality = extractQuality(type, obj);
-            model.updateOrUpdate(ioa, typeName, value, quality, cot, time);
+            for (int i = 0; i < elementSets.length; i++) {
+                int ioa = asdu.isSequenceOfElements()
+                        ? obj.getInformationObjectAddress() + i
+                        : obj.getInformationObjectAddress();
+                if (!session.getConfig().isIoaInRange(ioa, category)) continue;
+
+                String typeName = com.iec104tester.core.AsduDecoder.getTypeNameCn(type);
+                String value = extractValue(type, elementSets[i]);
+                String quality = extractQuality(type, elementSets[i]);
+                model.updateOrUpdate(ioa, typeName, value, quality, cot, time);
+            }
         }
     }
 
@@ -266,9 +273,10 @@ public class SessionPanel extends JPanel {
             case M_SP_TB_1: case M_DP_TB_1: case M_ST_TB_1: case M_BO_TB_1:
                 return ConnectionConfig.DataCategory.TELESIGNALING;
 
-            case M_ME_NA_1: case M_ME_NB_1: case M_ME_NC_1:
+            case M_ME_NA_1: case M_ME_NB_1: case M_ME_NC_1: case M_ME_ND_1:
+            case M_ME_TA_1: case M_ME_TB_1: case M_ME_TC_1:
             case M_ME_TD_1: case M_ME_TE_1: case M_ME_TF_1:
-            case M_IT_NA_1: case M_IT_TB_1:
+            case M_IT_NA_1: case M_IT_TA_1: case M_IT_TB_1:
                 return ConnectionConfig.DataCategory.TELEMETRY;
 
             case C_SE_NA_1: case C_SE_NB_1: case C_SE_NC_1:
@@ -282,11 +290,10 @@ public class SessionPanel extends JPanel {
         }
     }
 
-    private String extractValue(ASduType type, InformationObject obj) {
-        InformationElement[][] elements = obj.getInformationElements();
-        if (elements == null || elements.length == 0 || elements[0].length == 0) return "?";
+    private String extractValue(ASduType type, InformationElement[] elements) {
+        if (elements == null || elements.length == 0) return "?";
         try {
-            InformationElement elem = elements[0][0];
+            InformationElement elem = elements[0];
             if (elem == null) return "?";
             String str = elem.toString();
             if (str.contains(":")) {
@@ -298,12 +305,11 @@ public class SessionPanel extends JPanel {
         }
     }
 
-    private String extractQuality(ASduType type, InformationObject obj) {
-        InformationElement[][] elements = obj.getInformationElements();
+    private String extractQuality(ASduType type, InformationElement[] elements) {
         if (elements == null || elements.length == 0) return "?";
-        if (elements[0].length > 1) {
+        if (elements.length > 1) {
             try {
-                return elements[0][1].toString();
+                return elements[1].toString();
             } catch (Exception e) {
                 return "?";
             }

@@ -41,6 +41,7 @@ public class ConnectionConfigDialog extends JDialog {
 
     // IOA 范围配置
     private IoaRangeTableModel ioaRangeModel;
+    private JTable ioaRangeTable;
 
     public ConnectionConfigDialog(JFrame parent, ConnectionConfig config) {
         super(parent, "连接配置", true);
@@ -72,6 +73,7 @@ public class ConnectionConfigDialog extends JDialog {
         JButton okBtn = new JButton("确定");
         JButton cancelBtn = new JButton("取消");
         okBtn.addActionListener(e -> {
+            commitTableEditing();
             saveToConfig();
             approved = true;
             dispose();
@@ -109,12 +111,13 @@ public class ConnectionConfigDialog extends JDialog {
         panel.setBorder(BorderFactory.createTitledBorder("IOA 范围配置（起始地址 / 数量）"));
 
         ioaRangeModel = new IoaRangeTableModel();
-        JTable table = new JTable(ioaRangeModel);
-        table.setRowHeight(26);
-        table.getColumnModel().getColumn(1).setCellEditor(new SpinnerCellEditor(0, 0, 16777215, 1));
-        table.getColumnModel().getColumn(2).setCellEditor(new SpinnerCellEditor(0, 0, 100000, 1));
+        ioaRangeTable = new JTable(ioaRangeModel);
+        ioaRangeTable.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
+        ioaRangeTable.setRowHeight(26);
+        ioaRangeTable.getColumnModel().getColumn(1).setCellEditor(new SpinnerCellEditor(0, 0, 16777215, 1));
+        ioaRangeTable.getColumnModel().getColumn(2).setCellEditor(new SpinnerCellEditor(0, 0, 100000, 1));
 
-        JScrollPane tableScroll = new JScrollPane(table);
+        JScrollPane tableScroll = new JScrollPane(ioaRangeTable);
         tableScroll.setPreferredSize(new Dimension(440, 120));
         panel.add(tableScroll, BorderLayout.CENTER);
 
@@ -216,6 +219,11 @@ public class ConnectionConfigDialog extends JDialog {
         ioaRangeModel.fireTableDataChanged();
     }
 
+    private void commitTableEditing() {
+        if (ioaRangeTable != null && ioaRangeTable.isEditing()) {
+            ioaRangeTable.getCellEditor().stopCellEditing();
+        }
+    }
     private void saveToConfig() {
         config.setHost(hostField.getText().trim());
         config.setPort((Integer) portSpinner.getValue());

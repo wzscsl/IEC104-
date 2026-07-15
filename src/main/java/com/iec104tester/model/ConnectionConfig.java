@@ -38,12 +38,27 @@ public class ConnectionConfig {
     private Map<DataCategory, int[]> ioaRanges = new HashMap<>();
 
     public ConnectionConfig() {
+        initDefaultIoaRanges();
+    }
+
+    private void initDefaultIoaRanges() {
         // 默认 IOA 范围（参考电力行业常用分配）
         // 遥信: 0x0001, 遥测: 0x4001(16385), 遥控: 0x6001(24577), 遥调: 0x6201(25089)
-        ioaRanges.put(DataCategory.TELESIGNALING, new int[]{0x0001, 0});     // 遥信: 1 起
-        ioaRanges.put(DataCategory.TELEMETRY, new int[]{0x4001, 0});         // 遥测: 16385 起
-        ioaRanges.put(DataCategory.TELECOMMAND, new int[]{0x6001, 0});       // 遥控: 24577 起
-        ioaRanges.put(DataCategory.TELEADJUST, new int[]{0x6201, 0});        // 遥调: 25089 起
+        ioaRanges.putIfAbsent(DataCategory.TELESIGNALING, new int[]{0x0001, 0});     // 遥信: 1 起
+        ioaRanges.putIfAbsent(DataCategory.TELEMETRY, new int[]{0x4001, 0});         // 遥测: 16385 起
+        ioaRanges.putIfAbsent(DataCategory.TELECOMMAND, new int[]{0x6001, 0});       // 遥控: 24577 起
+        ioaRanges.putIfAbsent(DataCategory.TELEADJUST, new int[]{0x6201, 0});        // 遥调: 25089 起
+    }
+
+    /**
+     * Gson 反序列化不会调用构造方法；旧场景文件也可能缺少某些分类。
+     * 在读取范围前统一补齐，保证 count=0 始终按“不限制范围”处理。
+     */
+    private void ensureIoaRanges() {
+        if (ioaRanges == null) {
+            ioaRanges = new HashMap<>();
+        }
+        initDefaultIoaRanges();
     }
 
     public String getHost() { return host; }
@@ -89,20 +104,24 @@ public class ConnectionConfig {
     public void setIoaFieldLength(int ioaFieldLength) { this.ioaFieldLength = ioaFieldLength; }
 
     public int getIoaStart(DataCategory cat) {
+        ensureIoaRanges();
         int[] r = ioaRanges.get(cat);
         return r != null ? r[0] : 0;
     }
 
     public int getIoaCount(DataCategory cat) {
+        ensureIoaRanges();
         int[] r = ioaRanges.get(cat);
         return r != null ? r[1] : 0;
     }
 
     public void setIoaRange(DataCategory cat, int start, int count) {
+        ensureIoaRanges();
         ioaRanges.put(cat, new int[]{start, count});
     }
 
     public boolean isIoaInRange(int ioa, DataCategory cat) {
+        ensureIoaRanges();
         int[] r = ioaRanges.get(cat);
         if (r == null || r[1] <= 0) return true; // 未配置范围则全部显示
         return ioa >= r[0] && ioa < r[0] + r[1];
@@ -124,6 +143,7 @@ public class ConnectionConfig {
         c.cotFieldLength = cotFieldLength;
         c.commonAddressFieldLength = commonAddressFieldLength;
         c.ioaFieldLength = ioaFieldLength;
+        ensureIoaRanges();
         for (Map.Entry<DataCategory, int[]> entry : ioaRanges.entrySet()) {
             c.ioaRanges.put(entry.getKey(), entry.getValue().clone());
         }

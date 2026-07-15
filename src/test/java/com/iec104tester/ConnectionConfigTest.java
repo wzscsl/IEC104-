@@ -6,6 +6,8 @@ import com.iec104tester.model.ServerConfig;
 import com.openmuc.j60870.ASduType;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -85,6 +87,19 @@ class ConnectionConfigTest {
 
         assertTrue(config.isIoaInRange(99999, DataCategory.TELECOMMAND));
         assertTrue(config.isIoaInRange(0, DataCategory.TELECOMMAND));
+    }
+
+    @Test
+    void testIoaRangeDefaultsAreRestoredWhenMissing() throws Exception {
+        ConnectionConfig config = new ConnectionConfig();
+        Field field = ConnectionConfig.class.getDeclaredField("ioaRanges");
+        field.setAccessible(true);
+        field.set(config, null);
+
+        assertEquals(0x0001, config.getIoaStart(DataCategory.TELESIGNALING));
+        assertEquals(0, config.getIoaCount(DataCategory.TELESIGNALING));
+        assertTrue(config.isIoaInRange(0, DataCategory.TELESIGNALING));
+        assertTrue(config.isIoaInRange(99999, DataCategory.TELESIGNALING));
     }
 
     @Test
