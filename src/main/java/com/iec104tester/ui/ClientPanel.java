@@ -3,10 +3,13 @@ package com.iec104tester.ui;
 import com.iec104tester.core.ClientManager;
 import com.iec104tester.core.ClientSession;
 import com.iec104tester.model.ConnectionConfig;
+import com.iec104tester.model.SceneConfig;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +30,8 @@ public class ClientPanel extends JPanel {
     private JButton disconnectBtn;
     private JButton settingsBtn;
     private JButton deleteBtn;
+    private JButton saveSceneBtn;
+    private JButton loadSceneBtn;
 
     // 右侧内容区
     private JPanel contentPanel;
@@ -86,7 +91,7 @@ public class ClientPanel extends JPanel {
         sessionList.setComponentPopupMenu(popup);
 
         // 按钮区
-        JPanel buttonPanel = new JPanel(new GridLayout(3, 2, 3, 3));
+        JPanel buttonPanel = new JPanel(new GridLayout(4, 2, 3, 3));
         newBtn = new JButton("新建");
         newBtn.addActionListener(e -> addNewSession());
         connectBtn = new JButton("连接");
@@ -97,12 +102,18 @@ public class ClientPanel extends JPanel {
         settingsBtn.addActionListener(e -> openSettings());
         deleteBtn = new JButton("删除");
         deleteBtn.addActionListener(e -> deleteSession());
+        saveSceneBtn = new JButton("保存场景");
+        saveSceneBtn.addActionListener(e -> saveScene());
+        loadSceneBtn = new JButton("加载场景");
+        loadSceneBtn.addActionListener(e -> loadScene());
 
         buttonPanel.add(newBtn);
         buttonPanel.add(connectBtn);
         buttonPanel.add(disconnectBtn);
         buttonPanel.add(settingsBtn);
         buttonPanel.add(deleteBtn);
+        buttonPanel.add(saveSceneBtn);
+        buttonPanel.add(loadSceneBtn);
         buttonPanel.add(new JLabel()); // 占位
 
         sidebar.add(buttonPanel, BorderLayout.SOUTH);
@@ -125,6 +136,13 @@ public class ClientPanel extends JPanel {
         sessionCounter++;
         String name = "连接 " + sessionCounter;
         ConnectionConfig config = new ConnectionConfig();
+        addNewSession(name, config);
+    }
+
+    /**
+     * 以指定名称和配置创建新会话。
+     */
+    private void addNewSession(String name, ConnectionConfig config) {
         ClientSession session = new ClientSession(name, config);
 
         // 状态变化时刷新列表
@@ -208,6 +226,111 @@ public class ClientPanel extends JPanel {
             session.setConfig(dialog.getConfig());
             refreshList();
         }
+    }
+
+    // ===== 场景保存/加载 =====
+
+    /**
+     * 保存当前所有连接配置到 JSON 文件（.iec104）。
+     */
+    private void saveScene() {
+        if (sessions.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "没有可保存的连接", "提示", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("保存场景");
+        chooser.setFileFilter(new FileNameExtensionFilter("IEC104 场景文件 (*.iec104)", "iec104"));
+        chooser.setSelectedFile(new File("scene.iec104"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".iec104")) {
+            file = new File(file.getParentFile(), file.getName() + ".iec104");
+        }
+
+        SceneConfig scene = new SceneConfig(file.getName().replace(".iec104", ""));
+        for (ClientSession s : sessions) {
+            scene.addClient(s.getName(), s.getConfig().copy());
+        }
+        scene.stampSaveTime();
+
+        try {
+            scene.saveToFile(file);
+            JOptionPane.showMessageDialog(this,
+                    "成功保存 " + sessions.size() + " 个连接到\n" + file.getAbsolutePath(),
+                    "保存成功", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "保存失败: " + ex.getMessage(),
+                    "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * 从 JSON 文件（.iec104）加载场景，清除现有连接并重建。
+     */
+    private void loadScene() {
+        // 若存在已连接的会话，提示用户确认
+        for (ClientSession s : sessions) {
+            if (s.getClientManager().isConnected()) {
+                int ret = JOptionPane.showConfirmDialog(this,
+                        "当前存在已连接的会话，加载场景将断开并清除所有现有连接，是否继续？",
+                        "确认加载", JOptionPane.OK_CANCEL_OPTION);
+                if (ret != JOptionPane.OK_OPTION) return;
+                break;
+            }
+        }
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("加载场景");
+        chooser.setFileFilter(new FileNameExtensionFilter("IEC104 场景文件 (*.iec104)", "iec104"));
+        chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+
+        SceneConfig scene;
+        try {
+            scene = SceneConfig.loadFromFile(file);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "加载失败: " + ex.getMessage(),
+                    "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (scene.getClients() == null || scene.getClients().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "文件中未包含任何连接配置", "提示", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // 清除现有连接
+        clearAllSessions();
+
+        // 根据文件内容重建连接
+        for (SceneConfig.ClientEntry entry : scene.getClients()) {
+            String name = entry.getName() != null ? entry.getName() : ("连接 " + (sessionCounter + 1));
+            ConnectionConfig cfg = entry.getConfig() != null ? entry.getConfig().copy() : new ConnectionConfig();
+            addNewSession(name, cfg);
+        }
+
+        JOptionPane.showMessageDialog(this,
+                "成功加载 " + scene.getClients().size() + " 个连接",
+                "加载成功", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
+     * 断开并清除所有会话。
+     */
+    private void clearAllSessions() {
+        for (ClientSession s : sessions) {
+            if (s.getClientManager().isConnected()) {
+                s.getClientManager().disconnect();
+            }
+        }
+        sessions.clear();
+        contentPanel.removeAll();
+        contentPanel.add(new JLabel("请选择或新建连接", SwingConstants.CENTER), "empty");
+        cardLayout.show(contentPanel, "empty");
+        sessionCounter = 0;
+        refreshList();
+        notifyStateChanged();
     }
 
     private ClientSession getSelectedSession() {

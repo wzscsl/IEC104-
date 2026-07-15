@@ -35,6 +35,8 @@ public class MessageTablePanel extends JPanel {
     private JLabel countLabel;
 
     private JComboBox<String> directionFilter;
+    private JComboBox<String> typeFilter;
+    private JTextField ioaFilter;
     private JTextField searchField;
 
     public MessageTablePanel(CaptureManager captureManager) {
@@ -87,15 +89,47 @@ public class MessageTablePanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
 
         // Filter bar
-        JPanel filterBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel filterBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 2));
         filterBar.add(new JLabel("方向:"));
         directionFilter = new JComboBox<>(new String[]{"全部", "收", "发"});
         directionFilter.addActionListener(e -> applyFilter());
         filterBar.add(directionFilter);
+
+        filterBar.add(new JLabel("类型:"));
+        typeFilter = new JComboBox<>(new String[]{
+                "全部",
+                "M_SP_NA_1 单点遥信", "M_DP_NA_1 双点遥信",
+                "M_ME_NA_1 归一化遥测", "M_ME_NB_1 标度化遥测", "M_ME_NC_1 短浮点遥测",
+                "M_IT_NA_1 电度",
+                "M_SP_TB_1 带时标单点",
+                "C_SC_NA_1 单点遥控", "C_DC_NA_1 双点遥控",
+                "C_SE_NA_1 设点(归一化)", "C_SE_NB_1 设点(标度化)", "C_SE_NC_1 设点(短浮点)",
+                "C_IC_NA_1 总召唤", "C_CS_NA_1 时钟同步", "C_RD_NA_1 读命令",
+                "C_TS_NA_1 测试命令", "C_RP_NA_1 复位进程", "C_CI_NA_1 电度召唤"
+        });
+        typeFilter.addActionListener(e -> applyFilter());
+        filterBar.add(typeFilter);
+
+        filterBar.add(new JLabel("IOA:"));
+        ioaFilter = new JTextField(6);
+        ioaFilter.addActionListener(e -> applyFilter());
+        filterBar.add(ioaFilter);
+
         filterBar.add(new JLabel("搜索:"));
-        searchField = new JTextField(15);
+        searchField = new JTextField(12);
         searchField.addActionListener(e -> applyFilter());
         filterBar.add(searchField);
+
+        JButton resetBtn = new JButton("重置");
+        resetBtn.addActionListener(e -> {
+            directionFilter.setSelectedIndex(0);
+            typeFilter.setSelectedIndex(0);
+            ioaFilter.setText("");
+            searchField.setText("");
+            applyFilter();
+        });
+        filterBar.add(resetBtn);
+
         countLabel = new JLabel("0 条");
         filterBar.add(countLabel);
         add(filterBar, BorderLayout.SOUTH);
@@ -169,6 +203,24 @@ public class MessageTablePanel extends JPanel {
         String dir = (String) directionFilter.getSelectedItem();
         if (dir != null && !dir.equals("全部")) {
             if (!record.getDirectionStr().equals(dir)) return false;
+        }
+        // ASDU type filter
+        String typeSel = (String) typeFilter.getSelectedItem();
+        if (typeSel != null && !typeSel.equals("全部")) {
+            String typeName = record.getAsduType() != null ? record.getAsduType().toString() : "";
+            if (!typeSel.startsWith(typeName)) return false;
+        }
+        // IOA filter
+        String ioaText = ioaFilter.getText().trim();
+        if (!ioaText.isEmpty()) {
+            try {
+                int ioa = Integer.parseInt(ioaText);
+                String summary = record.getInfoObjectSummary();
+                if (!summary.contains(String.valueOf(ioa))) return false;
+            } catch (NumberFormatException e) {
+                // 非数字时按文本匹配
+                if (!record.getInfoObjectSummary().contains(ioaText)) return false;
+            }
         }
         // Search filter
         String search = searchField.getText().trim().toLowerCase();

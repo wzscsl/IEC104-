@@ -4,12 +4,15 @@ import com.iec104tester.capture.CaptureManager;
 import com.iec104tester.core.ServerDataModel;
 import com.iec104tester.core.ServerManager;
 import com.iec104tester.model.DataPointInfo;
+import com.iec104tester.model.SceneConfig;
 import com.iec104tester.model.ServerConfig;
 import com.openmuc.j60870.ASduType;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.io.File;
 import java.util.List;
 
 /**
@@ -26,6 +29,8 @@ public class ServerPanel extends JPanel {
     private JButton startBtn;
     private JButton stopBtn;
     private JButton settingsBtn;
+    private JButton saveConfigBtn;
+    private JButton loadConfigBtn;
 
     private ServerConfig config = new ServerConfig();
     private DataPointTableModel tableModel;
@@ -60,6 +65,7 @@ public class ServerPanel extends JPanel {
                     settingsBtn.setEnabled(false);
                     bindField.setEnabled(false);
                     portSpinner.setEnabled(false);
+                    loadConfigBtn.setEnabled(false);
                     break;
                 case STOPPED:
                 case ERROR:
@@ -68,6 +74,7 @@ public class ServerPanel extends JPanel {
                     settingsBtn.setEnabled(true);
                     bindField.setEnabled(true);
                     portSpinner.setEnabled(true);
+                    loadConfigBtn.setEnabled(true);
                     break;
                 default:
                     break;
@@ -97,6 +104,12 @@ public class ServerPanel extends JPanel {
         stopBtn = new JButton("停止");
         stopBtn.addActionListener(e -> serverManager.stop());
         panel.add(stopBtn);
+        saveConfigBtn = new JButton("保存配置");
+        saveConfigBtn.addActionListener(e -> saveServerConfig());
+        panel.add(saveConfigBtn);
+        loadConfigBtn = new JButton("加载配置");
+        loadConfigBtn.addActionListener(e -> loadServerConfig());
+        panel.add(loadConfigBtn);
 
         return panel;
     }
@@ -219,6 +232,72 @@ public class ServerPanel extends JPanel {
             bindField.setText(config.getBindAddress());
             portSpinner.setValue(config.getPort());
         }
+    }
+
+    /**
+     * 保存服务端配置到 JSON 文件（.iec104）。
+     */
+    private void saveServerConfig() {
+        // 同步基础字段到配置
+        config.setBindAddress(bindField.getText());
+        config.setPort((Integer) portSpinner.getValue());
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("保存服务端配置");
+        chooser.setFileFilter(new FileNameExtensionFilter("IEC104 场景文件 (*.iec104)", "iec104"));
+        chooser.setSelectedFile(new File("server.iec104"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase().endsWith(".iec104")) {
+            file = new File(file.getParentFile(), file.getName() + ".iec104");
+        }
+
+        SceneConfig scene = new SceneConfig(file.getName().replace(".iec104", ""));
+        scene.setServerConfig(config.copy());
+        scene.stampSaveTime();
+
+        try {
+            scene.saveToFile(file);
+            JOptionPane.showMessageDialog(this,
+                    "服务端配置已保存到\n" + file.getAbsolutePath(),
+                    "保存成功", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "保存失败: " + ex.getMessage(),
+                    "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * 从 JSON 文件（.iec104）加载服务端配置。
+     */
+    private void loadServerConfig() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("加载服务端配置");
+        chooser.setFileFilter(new FileNameExtensionFilter("IEC104 场景文件 (*.iec104)", "iec104"));
+        chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File file = chooser.getSelectedFile();
+
+        SceneConfig scene;
+        try {
+            scene = SceneConfig.loadFromFile(file);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "加载失败: " + ex.getMessage(),
+                    "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (scene.getServerConfig() == null) {
+            JOptionPane.showMessageDialog(this, "文件中未包含服务端配置", "提示", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        config = scene.getServerConfig().copy();
+        bindField.setText(config.getBindAddress());
+        portSpinner.setValue(config.getPort());
+
+        JOptionPane.showMessageDialog(this, "服务端配置加载成功",
+                "加载成功", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void startServer() {
