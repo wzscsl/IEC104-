@@ -10,10 +10,15 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Manages the IEC 104 client connection lifecycle.
  */
 public class ClientManager {
+
+    private static final Logger log = LoggerFactory.getLogger(ClientManager.class);
 
     public enum ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, ERROR }
 
@@ -62,7 +67,7 @@ public class ClientManager {
                     connection.close();
                 }
             } catch (Exception e) {
-                // Ignore
+                log.debug("关闭旧连接时异常（可忽略）: {}", e.getMessage());
             }
             connection = null;
         }
@@ -130,7 +135,7 @@ public class ClientManager {
             try {
                 connection.close();
             } catch (Exception e) {
-                // Ignore
+                log.debug("断开连接时异常（可忽略）: {}", e.getMessage());
             }
         }
         connection = null;

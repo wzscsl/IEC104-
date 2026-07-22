@@ -6,10 +6,27 @@
         </encoder>
     </appender>
 
+    <!-- 文件日志：滚动策略，便于打包后排查问题 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 路径解析顺序：用户目录/iec104-tester/logs/iec104.log
+             打包成 exe 后，用户目录通常是应用同级的可写目录 -->
+        <file>${user.home}/.iec104-tester/logs/iec104.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${user.home}/.iec104-tester/logs/iec104.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>50MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
     <logger name="com.openmuc.j60870" level="WARN"/>
     <logger name="com.iec104tester" level="INFO"/>
 
     <root level="WARN">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
     </root>
 </configuration>

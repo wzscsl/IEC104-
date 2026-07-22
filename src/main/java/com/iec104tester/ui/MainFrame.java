@@ -5,10 +5,14 @@ import com.iec104tester.capture.PacketRecord;
 import com.iec104tester.capture.PacketStorage;
 import com.iec104tester.core.ServerManager;
 import com.iec104tester.core.ServerDataModel;
+import com.iec104tester.ui.common.Icons;
+import com.iec104tester.ui.common.UITheme;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.util.List;
 
@@ -30,10 +34,19 @@ public class MainFrame extends JFrame {
     private JTabbedPane tabbedPane;
 
     public MainFrame() {
-        setTitle("IEC104 协议测试工具");
+        setTitle("IEC104 协议测试工具 v1.2");
         setSize(1280, 820);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+
+        // 设置窗口图标（FlatSVGIcon 自动跟随主题）
+        try {
+            com.formdev.flatlaf.extras.FlatSVGIcon icon =
+                    new com.formdev.flatlaf.extras.FlatSVGIcon("icons/app-icon.svg", 256, 256);
+            setIconImage(icon.getImage());
+        } catch (Exception e) {
+            // 图标加载失败不影响启动
+        }
 
         // 服务端共享实例
         serverCaptureManager = new CaptureManager();
@@ -48,8 +61,8 @@ public class MainFrame extends JFrame {
         // 选项卡面板
         tabbedPane = new JTabbedPane();
         clientPanel = new ClientPanel();
-        tabbedPane.addTab(MODE_CLIENT, clientPanel);
-        tabbedPane.addTab(MODE_SERVER, new ServerPanel(serverManager, serverDataModel, serverCaptureManager));
+        tabbedPane.addTab(MODE_CLIENT, Icons.client(), clientPanel);
+        tabbedPane.addTab(MODE_SERVER, Icons.server(), new ServerPanel(serverManager, serverDataModel, serverCaptureManager));
         add(tabbedPane, BorderLayout.CENTER);
 
         // 状态栏
@@ -80,6 +93,49 @@ public class MainFrame extends JFrame {
         // 定时刷新状态栏
         Timer statusTimer = new Timer(1000, e -> updateConnectionStatus());
         statusTimer.start();
+
+        // 首次启动引导
+        showWelcomeIfFirstLaunch();
+    }
+
+    /**
+     * 首次启动检测：基于用户目录下的标记文件判断是否首次运行。
+     * 首次运行时弹出欢迎对话框并创建标记文件。
+     */
+    private void showWelcomeIfFirstLaunch() {
+        java.io.File marker = new java.io.File(System.getProperty("user.home"),
+                ".iec104-tester/.welcome-shown");
+        if (marker.exists()) return;
+
+        // 确保目录存在
+        java.io.File dir = marker.getParentFile();
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs();
+        }
+
+        String welcome = "<html><div style='width:420px'>"
+                + "<h2 style='color:#2563EB;margin:0 0 12px 0'>欢迎使用 IEC104 协议测试工具 v1.2</h2>"
+                + "<p style='margin:0 0 8px 0'>本工具基于开源 j60870 库，支持 IEC 60870-5-104 协议的客户端与服务端测试。</p>"
+                + "<p style='margin:0 0 8px 0'><b>快速入门：</b></p>"
+                + "<ul style='margin:0 0 8px 0;padding-left:20px'>"
+                + "<li><b>客户端模式：</b>左侧点击「新建」创建连接，设置 IP/端口后点「连接」</li>"
+                + "<li><b>服务端模式：</b>切换到服务端 Tab，配置参数后点「启动」监听端口</li>"
+                + "<li><b>报文监控：</b>连接后「报文监控」Tab 实时显示收发的 I/S/U 帧</li>"
+                + "<li><b>报文保存：</b>Ctrl+S 保存报文为 JSONL，支持 Ctrl+E 导出 CSV</li>"
+                + "</ul>"
+                + "<p style='margin:0;color:#6B7280;font-size:11px'>"
+                + "快捷键：Ctrl+N 新建会话 | Ctrl+S 保存报文 | Ctrl+O 打开报文</p>"
+                + "</div></html>";
+
+        JOptionPane.showMessageDialog(this, welcome,
+                "欢迎使用", JOptionPane.PLAIN_MESSAGE);
+
+        // 创建标记文件，下次不再弹出
+        try {
+            marker.createNewFile();
+        } catch (Exception e) {
+            // 创建失败不影响使用
+        }
     }
 
     private JMenuBar createMenuBar() {
@@ -87,25 +143,30 @@ public class MainFrame extends JFrame {
 
         JMenu fileMenu = new JMenu("文件");
 
-        JMenuItem newItem = new JMenuItem("新建会话");
+        JMenuItem newItem = new JMenuItem("新建会话", Icons.newIcon());
+        newItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK));
         newItem.addActionListener(e -> clearActivePackets());
         fileMenu.add(newItem);
 
-        JMenuItem openItem = new JMenuItem("打开报文文件");
+        JMenuItem openItem = new JMenuItem("打开报文文件", Icons.load());
+        openItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK));
         openItem.addActionListener(e -> openPacketFile());
         fileMenu.add(openItem);
 
-        JMenuItem saveItem = new JMenuItem("保存报文");
+        JMenuItem saveItem = new JMenuItem("保存报文", Icons.save());
+        saveItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
         saveItem.addActionListener(e -> savePackets());
         fileMenu.add(saveItem);
 
         JMenuItem exportItem = new JMenuItem("导出CSV");
+        exportItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, InputEvent.CTRL_DOWN_MASK));
         exportItem.addActionListener(e -> exportCsv());
         fileMenu.add(exportItem);
 
         fileMenu.addSeparator();
 
         JMenuItem exitItem = new JMenuItem("退出");
+        exitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
         exitItem.addActionListener(e -> System.exit(0));
         fileMenu.add(exitItem);
 
@@ -124,17 +185,21 @@ public class MainFrame extends JFrame {
     }
 
     private JPanel createStatusBar() {
-        JPanel statusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
-        statusBar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY));
+        JPanel statusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, UITheme.SPACING_MD, UITheme.SPACING_XS));
+        statusBar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER));
 
         statusLabel = new JLabel("状态: 未连接");
         packetCountLabel = new JLabel("报文数: 0");
         modeLabel = new JLabel("当前模式: " + MODE_CLIENT);
 
+        // 次级文字使用辅助色，提升视觉层次
+        packetCountLabel.setForeground(UITheme.TEXT_SECONDARY);
+        modeLabel.setForeground(UITheme.TEXT_SECONDARY);
+
         statusBar.add(statusLabel);
-        statusBar.add(new JLabel(" | "));
+        statusBar.add(new JSeparator(JSeparator.VERTICAL));
         statusBar.add(packetCountLabel);
-        statusBar.add(new JLabel(" | "));
+        statusBar.add(new JSeparator(JSeparator.VERTICAL));
         statusBar.add(modeLabel);
 
         return statusBar;
@@ -152,15 +217,19 @@ public class MainFrame extends JFrame {
 
     private void updateConnectionStatus() {
         int index = tabbedPane.getSelectedIndex();
+        String statusText;
         if (index == 0) {
             // 客户端模式：显示当前选中连接的状态
-            statusLabel.setText("状态: " + clientPanel.getActiveStatusText());
+            statusText = "状态: " + clientPanel.getActiveStatusText();
             packetCountLabel.setText("报文数: " + clientPanel.getActivePacketCount());
         } else {
             // 服务端模式
-            statusLabel.setText("状态: " + stateToString(serverManager.getState()));
+            statusText = "状态: " + stateToString(serverManager.getState());
             packetCountLabel.setText("报文数: " + serverCaptureManager.getPacketCount());
         }
+        statusLabel.setText(statusText);
+        // 根据状态文本应用语义颜色（已连接/运行中=绿；连接中/启动中=橙；错误=红；其余=灰）
+        statusLabel.setForeground(UITheme.colorForStatus(statusText));
     }
 
     private String stateToString(ServerManager.ServerState state) {

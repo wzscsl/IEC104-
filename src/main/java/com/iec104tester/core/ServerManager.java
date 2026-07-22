@@ -14,10 +14,15 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Manages the IEC 104 server lifecycle, connection handling, and data transmission.
  */
 public class ServerManager {
+
+    private static final Logger log = LoggerFactory.getLogger(ServerManager.class);
 
     public enum ServerState { STOPPED, STARTING, RUNNING, ERROR }
 
@@ -80,11 +85,15 @@ public class ServerManager {
         if (server != null) {
             stopSpontaneousThread();
             for (Connection conn : connectionMap.values()) {
-                try { conn.close(); } catch (Exception e) { /* Ignore */ }
+                try { conn.close(); } catch (Exception e) {
+                    log.debug("重启时关闭连接异常: {}", e.getMessage());
+                }
             }
             connectionMap.clear();
             connectionInfoMap.clear();
-            try { server.stop(); } catch (Exception e) { /* Ignore */ }
+            try { server.stop(); } catch (Exception e) {
+                log.warn("停止旧服务端异常: {}", e.getMessage());
+            }
             server = null;
         }
 
@@ -180,7 +189,7 @@ public class ServerManager {
             try {
                 server.stop();
             } catch (Exception e) {
-                // Ignore
+                log.warn("停止服务端异常: {}", e.getMessage());
             }
             server = null;
         }
@@ -189,7 +198,7 @@ public class ServerManager {
             try {
                 conn.close();
             } catch (Exception e) {
-                // Ignore
+                log.debug("停止时关闭连接异常: {}", e.getMessage());
             }
         }
         connectionMap.clear();
@@ -205,7 +214,7 @@ public class ServerManager {
             try {
                 conn.close();
             } catch (Exception e) {
-                // Ignore
+                log.debug("断开客户端 {} 时异常: {}", connId, e.getMessage());
             }
             connectionMap.remove(connId);
             connectionInfoMap.remove(connId);
@@ -294,7 +303,7 @@ public class ServerManager {
                         dataModel.updateValue(ioa, on ? 1.0 : 0.0);
                     }
                 } catch (ClassCastException e) {
-                    // Ignore
+                    log.warn("单点命令元素类型不匹配: {}", e.getMessage());
                 }
             }
         }
@@ -313,7 +322,7 @@ public class ServerManager {
                         dataModel.updateValue(ioa, value.getValue());
                     }
                 } catch (ClassCastException e) {
-                    // Ignore
+                    log.warn("短浮点设点命令元素类型不匹配: {}", e.getMessage());
                 }
             }
         }
@@ -332,7 +341,7 @@ public class ServerManager {
                         dataModel.updateValue(ioa, value.getUnnormalizedValue());
                     }
                 } catch (ClassCastException e) {
-                    // Ignore
+                    log.warn("标度化设点命令元素类型不匹配: {}", e.getMessage());
                 }
             }
         }
@@ -388,7 +397,7 @@ public class ServerManager {
                         try {
                             conn.send(spontaneousAsdu);
                         } catch (IOException e) {
-                            // Connection may be closed
+                            log.debug("自发发送时连接异常: {}", e.getMessage());
                         }
                     }
                 }
@@ -432,7 +441,7 @@ public class ServerManager {
             try {
                 conn.send(asdu);
             } catch (IOException e) {
-                // Ignore
+                log.debug("广播数据点时连接异常: {}", e.getMessage());
             }
         }
     }

@@ -6,6 +6,8 @@ import com.iec104tester.core.ServerManager;
 import com.iec104tester.model.DataPointInfo;
 import com.iec104tester.model.SceneConfig;
 import com.iec104tester.model.ServerConfig;
+import com.iec104tester.ui.common.Icons;
+import com.iec104tester.ui.common.UITheme;
 import com.openmuc.j60870.ASduType;
 
 import javax.swing.*;
@@ -99,9 +101,12 @@ public class ServerPanel extends JPanel {
         settingsBtn.addActionListener(e -> openSettings());
         panel.add(settingsBtn);
         startBtn = new JButton("启动");
+        startBtn.setIcon(Icons.start());
         startBtn.addActionListener(e -> startServer());
+        UITheme.applyPrimaryButton(startBtn);
         panel.add(startBtn);
         stopBtn = new JButton("停止");
+        stopBtn.setIcon(Icons.stop());
         stopBtn.addActionListener(e -> serverManager.stop());
         panel.add(stopBtn);
         saveConfigBtn = new JButton("保存配置");
@@ -118,7 +123,7 @@ public class ServerPanel extends JPanel {
         JTabbedPane tabPane = new JTabbedPane();
 
         // Tab 1: Data point management
-        tabPane.addTab("数据点管理", createDataPointPanel());
+        tabPane.addTab("数据点管理", Icons.datapoint(), createDataPointPanel());
 
         // Tab 2: Packet monitoring
         MessageTablePanel messageTablePanel = new MessageTablePanel(captureManager);
@@ -127,10 +132,10 @@ public class ServerPanel extends JPanel {
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, messageTablePanel, messageDetailPanel);
         splitPane.setDividerLocation(600);
         splitPane.setResizeWeight(0.6);
-        tabPane.addTab("报文监控", splitPane);
+        tabPane.addTab("报文监控", Icons.packet(), splitPane);
 
         // Tab 3: Connection list
-        tabPane.addTab("连接列表", createConnectionPanel());
+        tabPane.addTab("连接列表", Icons.client(), createConnectionPanel());
 
         return tabPane;
     }

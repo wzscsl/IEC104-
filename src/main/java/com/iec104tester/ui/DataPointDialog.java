@@ -1,6 +1,7 @@
 package com.iec104tester.ui;
 
 import com.iec104tester.model.DataPointInfo;
+import com.iec104tester.ui.common.UITheme;
 import com.openmuc.j60870.ASduType;
 
 import javax.swing.*;
@@ -112,6 +113,7 @@ public class DataPointDialog extends JDialog {
         gbc.anchor = GridBagConstraints.CENTER;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         JButton okBtn = new JButton("确定");
+        UITheme.applyPrimaryButton(okBtn);
         okBtn.addActionListener(e -> {
             if (saveToPoint()) {
                 approved = true;

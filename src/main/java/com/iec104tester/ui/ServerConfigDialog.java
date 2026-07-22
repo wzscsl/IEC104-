@@ -1,6 +1,8 @@
 package com.iec104tester.ui;
 
 import com.iec104tester.model.ServerConfig;
+import com.iec104tester.ui.common.SpinnerCellEditor;
+import com.iec104tester.ui.common.UITheme;
 import com.openmuc.j60870.ASduType;
 
 import javax.swing.*;
@@ -206,6 +208,7 @@ public class ServerConfigDialog extends JDialog {
         // === 底部按钮 ===
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton okBtn = new JButton("确定");
+        UITheme.applyPrimaryButton(okBtn);
         okBtn.addActionListener(e -> {
             saveConfig();
             approved = true;
@@ -384,25 +387,6 @@ public class ServerConfigDialog extends JDialog {
 
     /**
      * 表格中使用 Spinner 的单元格编辑器
+     * 已抽取到 ui.common.SpinnerCellEditor
      */
-    private static class SpinnerCellEditor extends AbstractCellEditor implements javax.swing.table.TableCellEditor {
-        private final JSpinner spinner;
-
-        SpinnerCellEditor(int value, int min, int max, int step) {
-            spinner = new JSpinner(new SpinnerNumberModel(value, min, max, step));
-        }
-
-        @Override
-        public Object getCellEditorValue() {
-            return spinner.getValue();
-        }
-
-        @Override
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int col) {
-            if (value instanceof Integer) {
-                spinner.setValue(value);
-            }
-            return spinner;
-        }
-    }
 }

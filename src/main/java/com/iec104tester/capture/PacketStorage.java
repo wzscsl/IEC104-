@@ -1,7 +1,6 @@
 package com.iec104tester.capture;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -17,7 +16,11 @@ import java.util.List;
  */
 public class PacketStorage {
 
-    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    /**
+     * 用于 JSON Lines 输出的 Gson 实例。
+     * 注意：不能使用 pretty printing，否则一个对象会被输出为多行，破坏 JSON Lines "每行一个 JSON" 的格式约定。
+     */
+    private static final Gson gson = new Gson();
     private static final SimpleDateFormat FILE_DATE_FORMAT = new SimpleDateFormat("yyyyMMdd_HHmmss");
 
     /**

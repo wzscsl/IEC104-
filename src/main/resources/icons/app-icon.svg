@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="48" fill="#2563EB"/>
+  <!-- 简化协议波形 -->
+  <path d="M48 160 L48 96 L88 96 L88 128 L128 128 L128 80 L168 80 L168 144 L208 144 L208 112"
+        stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- 底部装饰条 -->
+  <rect x="48" y="192" width="160" height="8" rx="4" fill="#1D4ED8"/>
+</svg>

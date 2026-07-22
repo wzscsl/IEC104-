@@ -4,6 +4,8 @@ import com.iec104tester.core.ClientManager;
 import com.iec104tester.core.ClientSession;
 import com.iec104tester.model.ConnectionConfig;
 import com.iec104tester.model.SceneConfig;
+import com.iec104tester.ui.common.Icons;
+import com.iec104tester.ui.common.UITheme;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -23,8 +25,8 @@ public class ClientPanel extends JPanel {
     private int sessionCounter = 0;
 
     // 左侧连接列表
-    private JList<String> sessionList;
-    private DefaultListModel<String> listModel;
+    private JList<ClientSession> sessionList;
+    private DefaultListModel<ClientSession> listModel;
     private JButton newBtn;
     private JButton connectBtn;
     private JButton disconnectBtn;
@@ -66,6 +68,7 @@ public class ClientPanel extends JPanel {
         listModel = new DefaultListModel<>();
         sessionList = new JList<>(listModel);
         sessionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        sessionList.setCellRenderer(new SessionListCellRenderer());
         sessionList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 switchSession(sessionList.getSelectedIndex());
@@ -91,20 +94,30 @@ public class ClientPanel extends JPanel {
         sessionList.setComponentPopupMenu(popup);
 
         // 按钮区
-        JPanel buttonPanel = new JPanel(new GridLayout(4, 2, 3, 3));
+        JPanel buttonPanel = new JPanel(new GridLayout(4, 2, UITheme.SPACING_SM, UITheme.SPACING_SM));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(
+                UITheme.SPACING_SM, UITheme.SPACING_SM, UITheme.SPACING_SM, UITheme.SPACING_SM));
         newBtn = new JButton("新建");
+        newBtn.setIcon(Icons.newIcon());
         newBtn.addActionListener(e -> addNewSession());
         connectBtn = new JButton("连接");
+        connectBtn.setIcon(Icons.connect());
         connectBtn.addActionListener(e -> doConnect());
+        UITheme.applyPrimaryButton(connectBtn);
         disconnectBtn = new JButton("断开");
+        disconnectBtn.setIcon(Icons.disconnect());
         disconnectBtn.addActionListener(e -> doDisconnect());
         settingsBtn = new JButton("设置");
+        settingsBtn.setIcon(Icons.settings());
         settingsBtn.addActionListener(e -> openSettings());
         deleteBtn = new JButton("删除");
+        deleteBtn.setIcon(Icons.delete());
         deleteBtn.addActionListener(e -> deleteSession());
         saveSceneBtn = new JButton("保存场景");
+        saveSceneBtn.setIcon(Icons.save());
         saveSceneBtn.addActionListener(e -> saveScene());
         loadSceneBtn = new JButton("加载场景");
+        loadSceneBtn.setIcon(Icons.load());
         loadSceneBtn.addActionListener(e -> loadScene());
 
         buttonPanel.add(newBtn);
@@ -126,8 +139,41 @@ public class ClientPanel extends JPanel {
     private JPanel createContentArea() {
         cardLayout = new CardLayout();
         contentPanel = new JPanel(cardLayout);
-        contentPanel.add(new JLabel("请选择或新建连接", SwingConstants.CENTER), "empty");
+        contentPanel.add(createEmptyStatePanel(), "empty");
         return contentPanel;
+    }
+
+    /**
+     * 空状态面板：图标 + 提示文字 + 引导按钮，避免空白页面的"未完成"感。
+     */
+    private JPanel createEmptyStatePanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(UITheme.BG_SUBTLE);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.insets = new Insets(0, 0, UITheme.SPACING_MD, 0);
+
+        JLabel iconLabel = new JLabel(Icons.empty());
+        iconLabel.setForeground(UITheme.TEXT_SECONDARY);
+        panel.add(iconLabel, gbc);
+
+        gbc.gridy++;
+        gbc.insets = new Insets(UITheme.SPACING_SM, UITheme.SPACING_LG, UITheme.SPACING_SM, UITheme.SPACING_LG);
+        JLabel hintLabel = new JLabel("请选择或新建连接");
+        hintLabel.setFont(UITheme.UI_FONT.deriveFont(Font.BOLD, 15f));
+        hintLabel.setForeground(UITheme.TEXT_PRIMARY);
+        panel.add(hintLabel, gbc);
+
+        gbc.gridy++;
+        gbc.insets = new Insets(UITheme.SPACING_SM, 0, 0, 0);
+        JButton createBtn = new JButton(" + 新建连接 ");
+        createBtn.setIcon(Icons.newIcon());
+        UITheme.applyPrimaryButton(createBtn);
+        createBtn.addActionListener(e -> addNewSession());
+        panel.add(createBtn, gbc);
+
+        return panel;
     }
 
     // ===== 会话管理 =====
@@ -326,7 +372,7 @@ public class ClientPanel extends JPanel {
         }
         sessions.clear();
         contentPanel.removeAll();
-        contentPanel.add(new JLabel("请选择或新建连接", SwingConstants.CENTER), "empty");
+        contentPanel.add(createEmptyStatePanel(), "empty");
         cardLayout.show(contentPanel, "empty");
         sessionCounter = 0;
         refreshList();
@@ -343,10 +389,7 @@ public class ClientPanel extends JPanel {
         int selected = sessionList.getSelectedIndex();
         listModel.clear();
         for (ClientSession s : sessions) {
-            ConnectionConfig cfg = s.getConfig();
-            String item = String.format("%s  [%s:%d]  %s",
-                    s.getName(), cfg.getHost(), cfg.getPort(), s.getStatusText());
-            listModel.addElement(item);
+            listModel.addElement(s);
         }
         if (selected >= 0 && selected < sessions.size()) {
             sessionList.setSelectedIndex(selected);
@@ -394,5 +437,66 @@ public class ClientPanel extends JPanel {
         Window w = SwingUtilities.getWindowAncestor(this);
         if (w instanceof JFrame) return (JFrame) w;
         return null;
+    }
+
+    /**
+     * 连接列表渲染器：双行布局
+     * 第一行：连接名称（主色）+ 状态色块
+     * 第二行：host:port（辅助色）
+     */
+    private static class SessionListCellRenderer extends JPanel implements ListCellRenderer<ClientSession> {
+        private final JLabel nameLabel = new JLabel();
+        private final JLabel addrLabel = new JLabel();
+        private final JLabel statusDot = new JLabel("●");
+
+        SessionListCellRenderer() {
+            setLayout(new BorderLayout(UITheme.SPACING_SM, 0));
+            setOpaque(true);
+            setBorder(BorderFactory.createEmptyBorder(
+                    UITheme.SPACING_SM, UITheme.SPACING_MD,
+                    UITheme.SPACING_SM, UITheme.SPACING_MD));
+
+            JPanel textPanel = new JPanel(new BorderLayout());
+            textPanel.setOpaque(false);
+            nameLabel.setFont(UITheme.UI_FONT.deriveFont(Font.PLAIN, 13f));
+            addrLabel.setFont(UITheme.UI_FONT.deriveFont(Font.PLAIN, 11f));
+            addrLabel.setForeground(UITheme.TEXT_SECONDARY);
+            textPanel.add(nameLabel, BorderLayout.NORTH);
+            textPanel.add(addrLabel, BorderLayout.CENTER);
+
+            statusDot.setFont(UITheme.UI_FONT.deriveFont(Font.PLAIN, 12f));
+            statusDot.setHorizontalAlignment(SwingConstants.RIGHT);
+
+            add(textPanel, BorderLayout.CENTER);
+            add(statusDot, BorderLayout.EAST);
+        }
+
+        @Override
+        public Component getListCellRendererComponent(JList<? extends ClientSession> list,
+                                                      ClientSession session, int index,
+                                                      boolean isSelected, boolean cellHasFocus) {
+            if (session == null) return this;
+
+            ConnectionConfig cfg = session.getConfig();
+            nameLabel.setText(session.getName());
+            addrLabel.setText(cfg.getHost() + ":" + cfg.getPort());
+
+            // 状态色块
+            String status = session.getStatusText();
+            statusDot.setForeground(UITheme.colorForStatus(status));
+            statusDot.setToolTipText(status);
+
+            // 选中态
+            if (isSelected) {
+                setBackground(list.getSelectionBackground());
+                nameLabel.setForeground(list.getSelectionForeground());
+                addrLabel.setForeground(list.getSelectionForeground());
+            } else {
+                setBackground(list.getBackground());
+                nameLabel.setForeground(UITheme.TEXT_PRIMARY);
+                addrLabel.setForeground(UITheme.TEXT_SECONDARY);
+            }
+            return this;
+        }
     }
 }

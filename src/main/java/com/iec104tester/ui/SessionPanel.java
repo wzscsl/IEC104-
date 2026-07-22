@@ -3,6 +3,7 @@ package com.iec104tester.ui;
 import com.iec104tester.core.ClientManager;
 import com.iec104tester.core.ClientSession;
 import com.iec104tester.model.ConnectionConfig;
+import com.iec104tester.ui.common.Icons;
 import com.openmuc.j60870.ASdu;
 import com.openmuc.j60870.ASduType;
 import com.openmuc.j60870.ie.InformationElement;
@@ -56,19 +57,19 @@ public class SessionPanel extends JPanel {
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, messageTablePanel, messageDetailPanel);
         splitPane.setDividerLocation(600);
         splitPane.setResizeWeight(0.6);
-        tabPane.addTab("报文监控", splitPane);
+        tabPane.addTab("报文监控", Icons.packet(), splitPane);
 
         // 遥信
-        tabPane.addTab("遥信", createDataTab(session.getTelesignalingModel()));
+        tabPane.addTab("遥信", Icons.telesignaling(), createDataTab(session.getTelesignalingModel()));
 
         // 遥测
-        tabPane.addTab("遥测", createDataTab(session.getTelemetryModel()));
+        tabPane.addTab("遥测", Icons.telemetry(), createDataTab(session.getTelemetryModel()));
 
         // 遥调
-        tabPane.addTab("遥调", createDataTab(session.getTeleadjustModel()));
+        tabPane.addTab("遥调", Icons.teleadjust(), createDataTab(session.getTeleadjustModel()));
 
         // 遥控
-        tabPane.addTab("遥控", createDataTab(session.getTelecommandModel()));
+        tabPane.addTab("遥控", Icons.telecommand(), createDataTab(session.getTelecommandModel()));
 
         return tabPane;
     }

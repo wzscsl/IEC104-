@@ -3,10 +3,13 @@ package com.iec104tester.ui;
 import com.iec104tester.capture.CaptureManager;
 import com.iec104tester.capture.PacketRecord;
 import com.iec104tester.capture.PacketStorage;
+import com.iec104tester.ui.common.UITheme;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -50,7 +53,17 @@ public class MessageTablePanel extends JPanel {
         add(toolbar, BorderLayout.NORTH);
 
         // Table
-        table = new JTable(tableModel);
+        table = new JTable(tableModel) {
+            @Override
+            public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
+                Component c = super.prepareRenderer(renderer, row, column);
+                // 选中行不覆盖背景色，让 L&F 的选中态显示
+                if (!isRowSelected(row)) {
+                    c.setBackground(row % 2 == 0 ? UITheme.TABLE_STRIPE : UITheme.BG_MAIN);
+                }
+                return c;
+            }
+        };
         table.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
         table.getColumnModel().getColumn(0).setPreferredWidth(90);  // Time
         table.getColumnModel().getColumn(1).setPreferredWidth(40);  // Dir
@@ -61,6 +74,9 @@ public class MessageTablePanel extends JPanel {
         table.getColumnModel().getColumn(6).setPreferredWidth(50);  // CA
         table.getColumnModel().getColumn(7).setPreferredWidth(80);  // IOA
         table.getColumnModel().getColumn(8).setPreferredWidth(200); // Summary
+
+        // 方向列（索引 1）使用专门渲染器：收=蓝色，发=橙色
+        table.getColumnModel().getColumn(1).setCellRenderer(new DirectionCellRenderer());
 
         table.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getSelectionModel().addListSelectionListener(e -> {
@@ -344,6 +360,33 @@ public class MessageTablePanel extends JPanel {
                 actualRow++;
             }
             return "";
+        }
+    }
+
+    /**
+     * 方向列渲染器：收=蓝色，发=橙色，未选中时着色，选中时使用默认选中前景色。
+     */
+    private static class DirectionCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus,
+                                                       int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (isSelected) {
+                // 选中态时使用 L&F 默认前景色（白色），保证可读性
+                c.setForeground(table.getSelectionForeground());
+            } else {
+                String dir = value == null ? "" : value.toString();
+                if ("收".equals(dir)) {
+                    c.setForeground(UITheme.INFO);
+                } else if ("发".equals(dir)) {
+                    c.setForeground(UITheme.WARNING);
+                } else {
+                    c.setForeground(UITheme.TEXT_PRIMARY);
+                }
+            }
+            setHorizontalAlignment(SwingConstants.CENTER);
+            return c;
         }
     }
 }

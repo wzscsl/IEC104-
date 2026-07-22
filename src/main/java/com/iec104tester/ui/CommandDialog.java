@@ -1,5 +1,6 @@
 package com.iec104tester.ui;
 
+import com.iec104tester.ui.common.UITheme;
 import com.openmuc.j60870.ie.IeDoubleCommand;
 
 import javax.swing.*;
@@ -167,6 +168,7 @@ public class CommandDialog extends JDialog {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton okBtn = new JButton("确定");
         JButton cancelBtn = new JButton("取消");
+        UITheme.applyPrimaryButton(okBtn);
         okBtn.addActionListener(e -> {
             approved = true;
             dispose();
